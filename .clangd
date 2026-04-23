@@ -1,0 +1,9 @@
+CompileFlags:
+  Add: 
+    - "-fopenmp"
+    # Manually add the GCC include path you found
+    - "-I/usr/lib/gcc/x86_64-linux-gnu/13/include" 
+    - "-I/usr/lib/gcc/x86_64-linux-gnu/12/include"
+  CompilationDatabase: "build"
+Diagnostics:
+  Suppress: "builtin_definition"

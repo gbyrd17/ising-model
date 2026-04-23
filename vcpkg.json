@@ -1,0 +1,10 @@
+{
+  "name": "ising-model",
+  "version-string": "0.01",
+  "dependencies": [
+    "fmt",
+    "nlohmann-json",
+    "catch2"
+  ],
+  "builtin-baseline": "40679b293f60dc873a2a92cbe6f82d74592f196a"
+}

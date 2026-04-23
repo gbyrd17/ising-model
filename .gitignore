@@ -1,0 +1,59 @@
+# --- Compiled Binaries & Libraries ---
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.exe
+*.out
+*.app
+# Compiled simulation binary
+ising_sim
+
+# --- CMake & Build Directories ---
+# Ignore the entire build folder (contains machine-specific paths)
+build/
+# CMake generated files
+CMakeUserPresets.json
+compile_commands.json
+
+# --- Package Manager (vcpkg) ---
+# vcpkg_installed contains the actual compiled headers/libs (fmt, json, etc.)
+# This folder is recreated via vcpkg.json and should NOT be committed.
+vcpkg_installed/
+vcpkg/
+
+# --- IDE & LSP Specific ---
+# Neovim / Clangd
+.cache/
+.clangd/
+*.swp
+*.swo
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# --- Python Frontend ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# --- Simulation Data & Logs ---
+# Keep your data local; do not push potentially large binary files to GitHub
+*.bin
+*.dat
+*.csv
+*.log
+config.json
+
+# --- System Specific ---
+.DS_Store
+Thumbs.db
