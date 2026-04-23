@@ -1,11 +1,15 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <omp.h>
+#include <random>
 #include <vector>
 
 #include <fstream>
 #include <ios>
+#include <iostream>
 #include <nlohmann/json.hpp>
+#include <stdexcept>
 
 class Lattice {
 private:
@@ -56,6 +60,19 @@ private:
               expected_size * sizeof(double));
   }
 
+  void populate_lattice() {
+#pragma omp parallel
+    {
+      std::uniform_int_distribution<int> spin_dist{0, 1};
+      std::mt19937 gen(omp_get_thread_num());
+
+#pragma omp for
+      for (int i = 0; i < (int)N; ++i) {
+        spins[i] = spin_dist(gen);
+      }
+    }
+  }
+
 public:
   /* Constructor: Lattice::Lattice(const nlohmann::json &j); (public)
    * Returns: (void); reads json file j and attempts to pull number of rows,
@@ -75,11 +92,19 @@ public:
    *  if having issues, always make sure to generate config and binaries
    *  from "$[PROJECT ROOT]/scripts/grid_helper.py"
    */
-  Lattice(const nlohmann::json &j) {
+  Lattice(const nlohmann::json &j, bool random_initial = true) {
     rows = j["rows"];
     cols = j["cols"];
     temp = j["T"];
     N = static_cast<size_t>(rows * cols);
+
+    std::vector<int> spins(N);
+    if (random_initial) {
+      populate_lattice();
+    } else {
+      throw std::runtime_error("!!Error!! bool 'random_initial' returned "
+                               "FALSE: Logic not implemented yet.\n");
+    }
 
     load_binary_map(j["field_map"], field, N);
     load_binary_map(j["h_coupling_map"], x_coupling, N);

@@ -1,5 +1,5 @@
 def main():
-    print("Hello from ising-model!")
+    with open()
 
 
 if __name__ == "__main__":

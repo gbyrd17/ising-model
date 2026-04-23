@@ -120,8 +120,9 @@ void Simulator::write_bin() {
   // let Lattice grid;  spin_data = grid.get_pointer();
   //                    data_size = grid.cols() * grid.rows() * sizeof(int8_t);
   // outFile.write(reinterpret_cast<const char*>(spin_data), data_size);
+  spin_data = grid.get
 
-  outFile.close();
+                  outFile.close();
 }
 
 /* Method: Simulator::try_flip(); (public)
