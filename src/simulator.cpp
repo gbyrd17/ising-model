@@ -24,6 +24,7 @@ Simulator::Simulator(Lattice lattice) : grid(std::move(lattice)) {
   init_site = {x_dist(gen), y_dist(gen)};
   std::cout << "Simulator initialized by flipping site at: (" << init_site[0]
             << ", " << init_site[1] << ")." << std::endl;
+  first_pass = true;
   return;
 };
 
@@ -97,36 +98,6 @@ void Simulator::find_total_energy() {
   return;
 }
 
-/* Method: Simulator::write_bin(); (private)
- * Returns: (void); Records current total energy, magnitization,
- *    and spin configuration to a .bin file.  File readable by
- *    python frontend.  Used by python frontend to generate
- *    visualization and output for user.
- */
-void Simulator::write_bin() {
-  const std::string &filename = "./output/sim_output.bin";
-  std::ofstream outFile(filename, std::ios::binary | std::ios::out);
-
-  if (!outFile.is_open()) {
-    throw std::runtime_error("Failed to open/initialize output file");
-  } else {
-    outFile.write(reinterpret_cast<const char *>(&this->current_energy),
-                  sizeof(double));
-    outFile.write(reinterpret_cast<const char *>(&this->current_mag),
-                  sizeof(double));
-    outFile.write(reinterpret_cast<const char *>(this->size.data()),
-                  2 * sizeof(int));
-
-    auto *spin_data = grid.spin_pointer();
-    outFile.write(reinterpret_cast<const char *>(spin_data),
-                  grid.total_sites() * sizeof(int8_t));
-
-    outFile.close();
-    std::cout << "Simulation results written to: " << filename << "."
-              << std::endl;
-  }
-}
-
 /* Method: Simulator::try_flip(); (public)
  * Returns: (void); Uses pre-initialized starting site (see constructor) as
  *    candidate for first spin-flip.  Decides when to flip based on
@@ -176,3 +147,40 @@ void Simulator::update_lattice() {
   find_magnitization();
   find_total_energy();
 };
+
+/* Method: Simulator::write_bin(); (private)
+ * Returns: (void); Records current total energy, magnitization,
+ *    and spin configuration to a .bin file.  File readable by
+ *    python frontend.  Used by python frontend to generate
+ *    visualization and output for user.
+ */
+void Simulator::write_bin() {
+
+  const std::string &filename = "./output/sim_output.bin";
+  std::ofstream outFile;
+  if (first_pass) {
+    outFile.open(filename, std::ios::binary | std::ios::out);
+    first_pass = false;
+  } else {
+    outFile.open(filename, std::ios::binary | std::ios::app);
+  }
+
+  if (!outFile.is_open()) {
+    throw std::runtime_error("Failed to open/initialize output file");
+  } else {
+    outFile.write(reinterpret_cast<const char *>(&this->current_energy),
+                  sizeof(double));
+    outFile.write(reinterpret_cast<const char *>(&this->current_mag),
+                  sizeof(double));
+
+    outFile.write(reinterpret_cast<const char *>(this->size.data()),
+                  2 * sizeof(int));
+
+    int8_t *spin_data = grid.spin_pointer()->data();
+    outFile.write(reinterpret_cast<const char *>(spin_data),
+                  grid.total_sites());
+    outFile.close();
+    std::cout << "Simulation results written to: " << filename << "."
+              << std::endl;
+  }
+}

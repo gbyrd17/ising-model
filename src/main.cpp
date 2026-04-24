@@ -8,13 +8,6 @@ int main() {
   Lattice grid(config);
   Simulator sim(grid);
 
-  //  static int steps = 100;
-  //
-  //  for (int i = 0; i < steps; ++i) {
-  //    sim.try_flip();
-  //    sim.update_lattice();
-  //  }
-
   sim.write_bin();
   return 0;
 }

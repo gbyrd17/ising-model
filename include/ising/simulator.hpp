@@ -28,6 +28,8 @@ private:
   double current_energy;
   double current_mag;
 
+  bool first_pass;
+
 public:
   Simulator(Lattice lattice);
 

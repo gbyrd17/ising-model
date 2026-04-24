@@ -10,6 +10,6 @@ def show_sim():
         print(f"Total Magnetization:\t{data['magnetization']:.3e}")
         print(f"Grid Shape:\t\t{data['grid'].shape}\n")
 
-    plt.imshow(data["grid"], cmap="binary")
+    plt.imshow(data["grid"], cmap="binary", vmin=-1, vmax=1)
     plt.title("Ising Model Configuration")
     plt.show()

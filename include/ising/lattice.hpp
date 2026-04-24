@@ -71,9 +71,14 @@ private:
 
 #pragma omp for
       for (int i = 0; i < static_cast<int>(N); ++i) {
-        spins[i] = spin_dist(gen) ? 1 : -1;
+        int8_t val = spin_dist(gen) ? 1 : -1;
+        spins[i] = val;
       }
     }
+    std::cout << "first 5 spins";
+    for (int i = 0; i < static_cast<int>(N); ++i)
+      std::cout << (int)spins[i] << " ";
+    std::cout << std::endl;
   }
 
 public:

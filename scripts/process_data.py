@@ -1,4 +1,5 @@
 import os
+import struct
 
 import numpy as np
 
@@ -11,17 +12,21 @@ def read_bin():
         return None
 
     with open(expected_out_path, "rb") as f:
-        ## energy and mag stored as double ==> 8 bytes each
-        energy = np.frombuffer(f.read(8), dtype=np.float64)[0]
-        mag = np.frombuffer(f.read(8), dtype=np.float64)[0]
-        ## rows and cols stored as int ==> 4 bytes each
-        rows = np.frombuffer(f.read(4), dtype=np.int32)[0]
-        cols = np.frombuffer(f.read(4), dtype=np.int32)[0]
+        # two doubles, two ints ==> (2*8) + (2*4) = 24 bytes
+        header = f.read(24)
+        energy, mag, rows, cols = struct.unpack("ddii", header)
 
         total_sites = rows * cols
         ## spins stored as int8_t ==> 1 byte each
-        spins = np.frombuffer(f.read(total_sites), dtype=np.int8)
-        grid = spins.reshape((rows, cols))
+        spins_raw = f.read(total_sites)
+        spins = np.frombuffer(spins_raw, dtype=np.int8)
+        grid = spins.reshape(rows, cols)
+
+        if spins.size != total_sites:
+            print(f"Warning: Expected {total_sites} spin sites, but found {spins.size}")
+
+        print(grid)
+        print("binary read successfully!")
         return {
             "energy": energy,
             "magnetization": mag,
