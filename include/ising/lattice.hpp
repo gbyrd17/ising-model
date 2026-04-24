@@ -60,7 +60,6 @@ private:
               expected_size * sizeof(double));
   }
 
-  // DOESNT WORK!!
   void populate_lattice() {
 #pragma omp parallel
     {
@@ -75,10 +74,6 @@ private:
         spins[i] = val;
       }
     }
-    std::cout << "first 5 spins";
-    for (int i = 0; i < static_cast<int>(N); ++i)
-      std::cout << (int)spins[i] << " ";
-    std::cout << std::endl;
   }
 
 public:
@@ -131,7 +126,7 @@ public:
   inline size_t get_index(int x, int y) const {
     auto wrapX = [this](int val) { return (val % rows + rows) % rows; };
     auto wrapY = [this](int val) { return (val % cols + cols) % cols; };
-    return wrapX(x) * y + wrapY(y);
+    return wrapX(x) * cols + wrapY(y);
   };
 
   /* Accessor: Lattice::get_spin(size_t idx); (public)

@@ -9,6 +9,12 @@ private:
   Lattice grid;
   std::uniform_real_distribution<double> dist{0.0, 1.0};
 
+  std::uniform_int_distribution<int> x_dist;
+  std::uniform_int_distribution<int> y_dist;
+
+  std::random_device rd;
+  std::mt19937 gen{rd()};
+
   /* Pointer: Simulator::&get_rng(); (private)
    * Returns: (std::mt19937); Allows for cpu multithreading in probability
    *    calls during update_lattice() method.
@@ -34,10 +40,9 @@ public:
   Simulator(Lattice lattice);
 
   std::vector<int> size;
-  std::vector<int> init_site;
+  std::vector<int> site;
 
-  void get_site();
   void try_flip();
-  void update_lattice();
+  void update_site();
   void write_bin();
 };

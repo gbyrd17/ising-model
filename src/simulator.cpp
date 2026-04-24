@@ -1,6 +1,7 @@
 #include "../include/ising/simulator.hpp"
 #include "../include/ising/lattice.hpp"
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <omp.h>
@@ -21,9 +22,9 @@ Simulator::Simulator(Lattice lattice) : grid(std::move(lattice)) {
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  init_site = {x_dist(gen), y_dist(gen)};
-  std::cout << "Simulator initialized by flipping site at: (" << init_site[0]
-            << ", " << init_site[1] << ")." << std::endl;
+  site = {x_dist(gen), y_dist(gen)};
+  std::cout << "Simulator initialized by flipping site at: (" << site[0] << ", "
+            << site[1] << ")." << std::endl;
   first_pass = true;
   return;
 };
@@ -62,6 +63,7 @@ double Simulator::get_energy_diff(int x, int y) {
  * Equation => M = (1/N) sum_(i=1)^(N) spin_(i)
  */
 void Simulator::find_magnitization() {
+  this->current_mag = 0;
   for (int x = 0; x < size[0]; ++x) {
     for (int y = 0; y < size[1]; ++y) {
       int idx = grid.get_index(x, y);
@@ -98,6 +100,8 @@ void Simulator::find_total_energy() {
   return;
 }
 
+void Simulator::update_site() { site = {x_dist(gen), y_dist(gen)}; };
+
 /* Method: Simulator::try_flip(); (public)
  * Returns: (void); Uses pre-initialized starting site (see constructor) as
  *    candidate for first spin-flip.  Decides when to flip based on
@@ -113,35 +117,15 @@ void Simulator::find_total_energy() {
  *    according to Boltzmann distribution.
  */
 void Simulator::try_flip() {
-  int idx = grid.get_index(init_site[0], init_site[1]);
+  int idx = grid.get_index(site[0], site[1]);
 
-  double dE = get_energy_diff(init_site[0], init_site[1]);
+  double dE = get_energy_diff(site[0], site[1]);
   if (dE <= 0) {
     grid.flip_spin(idx);
   } else {
     double probabilty = std::exp(-dE / grid.get_temp());
     if (dist(get_rng()) < probabilty) {
       grid.flip_spin(idx);
-    }
-  }
-};
-
-/* Method: Simulator::update_lattice(); (public)
- * Returns: (void);  Propagates Metropolis-Hastings algorithm across whole grid.
- *    Used to update grid after a change has been made; a site was flipped,
- * temperature modified, or coupling modified.
- *
- *    Updates (Lattice) grid by flipping sites according to Metropolis-Hastings.
- */
-void Simulator::update_lattice() {
-#pragma omp parallel for collapse(2)
-  for (int x = 0; x < size[0]; ++x) {
-    for (int y = 0; y < size[1]; ++y) {
-      double dE = get_energy_diff(x, y);
-
-      if (dE <= 0 || dist(get_rng()) < std::exp(-dE / grid.get_temp())) {
-        grid.flip_spin(grid.get_index(x, y));
-      }
     }
   }
   find_magnitization();
@@ -155,32 +139,37 @@ void Simulator::update_lattice() {
  *    visualization and output for user.
  */
 void Simulator::write_bin() {
+  namespace fs = std::filesystem;
+  try {
+    if (fs::create_directories("./output")) {
+      std::cout << "Output directory not found, creating...";
+    }
+    const std::string &filename = "./output/sim_output.bin";
+    std::ofstream outFile;
+    if (first_pass) {
+      outFile.open(filename, std::ios::binary | std::ios::out);
+      first_pass = false;
+    } else {
+      outFile.open(filename, std::ios::binary | std::ios::app);
+    }
 
-  const std::string &filename = "./output/sim_output.bin";
-  std::ofstream outFile;
-  if (first_pass) {
-    outFile.open(filename, std::ios::binary | std::ios::out);
-    first_pass = false;
-  } else {
-    outFile.open(filename, std::ios::binary | std::ios::app);
+    if (!outFile.is_open()) {
+      throw std::runtime_error("Failed to open/initialize output file");
+    } else {
+      outFile.write(reinterpret_cast<const char *>(&this->current_energy),
+                    sizeof(double));
+      outFile.write(reinterpret_cast<const char *>(&this->current_mag),
+                    sizeof(double));
+
+      outFile.write(reinterpret_cast<const char *>(this->size.data()),
+                    2 * sizeof(int));
+
+      int8_t *spin_data = grid.spin_pointer()->data();
+      outFile.write(reinterpret_cast<const char *>(spin_data),
+                    grid.total_sites());
+      outFile.close();
+    }
+  } catch (const fs::filesystem_error &e) {
+    std::cerr << "!!Error!! " << e.what() << '\n';
   }
-
-  if (!outFile.is_open()) {
-    throw std::runtime_error("Failed to open/initialize output file");
-  } else {
-    outFile.write(reinterpret_cast<const char *>(&this->current_energy),
-                  sizeof(double));
-    outFile.write(reinterpret_cast<const char *>(&this->current_mag),
-                  sizeof(double));
-
-    outFile.write(reinterpret_cast<const char *>(this->size.data()),
-                  2 * sizeof(int));
-
-    int8_t *spin_data = grid.spin_pointer()->data();
-    outFile.write(reinterpret_cast<const char *>(spin_data),
-                  grid.total_sites());
-    outFile.close();
-    std::cout << "Simulation results written to: " << filename << "."
-              << std::endl;
-  }
-}
+};
