@@ -1,5 +1,8 @@
+from scripts import visualize
+
+
 def main():
-    with open()
+    visualize.show_sim()
 
 
 if __name__ == "__main__":

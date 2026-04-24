@@ -104,25 +104,27 @@ void Simulator::find_total_energy() {
  *    visualization and output for user.
  */
 void Simulator::write_bin() {
-  const std::string &filename = "output.bin";
-  std::ofstream outFile(filename, std::ios::binary | std::ios::app);
+  const std::string &filename = "./output/sim_output.bin";
+  std::ofstream outFile(filename, std::ios::binary | std::ios::out);
 
   if (!outFile.is_open()) {
     throw std::runtime_error("Failed to open/initialize output file");
+  } else {
+    outFile.write(reinterpret_cast<const char *>(&this->current_energy),
+                  sizeof(double));
+    outFile.write(reinterpret_cast<const char *>(&this->current_mag),
+                  sizeof(double));
+    outFile.write(reinterpret_cast<const char *>(this->size.data()),
+                  2 * sizeof(int));
+
+    auto *spin_data = grid.spin_pointer();
+    outFile.write(reinterpret_cast<const char *>(spin_data),
+                  grid.total_sites() * sizeof(int8_t));
+
+    outFile.close();
+    std::cout << "Simulation results written to: " << filename << "."
+              << std::endl;
   }
-
-  outFile.write(reinterpret_cast<const char *>(&this->current_energy),
-                sizeof(double));
-  outFile.write(reinterpret_cast<const char *>(&this->current_mag),
-                sizeof(double));
-
-  auto *spin_data = grid.spin_pointer();
-  outFile.write(reinterpret_cast<const char *>(spin_data),
-                grid.total_sites() * sizeof(int8_t));
-
-  outFile.close();
-  std::cout << "Simulation results written to: " << &filename << "."
-            << std::endl;
 }
 
 /* Method: Simulator::try_flip(); (public)

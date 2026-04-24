@@ -4,6 +4,7 @@
 *.a
 *.lib
 *.so
+*.sh
 *.dylib
 *.exe
 *.out
@@ -14,6 +15,7 @@ ising_sim
 # --- CMake & Build Directories ---
 # Ignore the entire build folder (contains machine-specific paths)
 build/
+output/
 # CMake generated files
 CMakeUserPresets.json
 compile_commands.json

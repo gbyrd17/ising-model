@@ -60,6 +60,7 @@ private:
               expected_size * sizeof(double));
   }
 
+  // DOESNT WORK!!
   void populate_lattice() {
 #pragma omp parallel
     {
