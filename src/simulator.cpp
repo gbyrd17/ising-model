@@ -13,17 +13,17 @@
  *    a site at random to use in try_flip initialization method
  *
  */
-Simulator::Simulator(Lattice lattice) : grid(lattice) {
+Simulator::Simulator(Lattice lattice) : grid(std::move(lattice)) {
+  size = this->grid.get_size();
 
-  const std::vector<int> size = grid.size();
-  std::uniform_int_distribution<int> x_dist{0, size[0]};
-  std::uniform_int_distribution<int> y_dist{0, size[1]};
+  std::uniform_int_distribution<int> x_dist{0, size[0] - 1};
+  std::uniform_int_distribution<int> y_dist{0, size[1] - 1};
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  const std::vector<int> init_site = {x_dist(gen), y_dist(gen)};
-  std::cout << "Initialized by flipping site at: (" << init_site[0] << ", "
-            << init_site[1] << ")." << std::endl;
+  init_site = {x_dist(gen), y_dist(gen)};
+  std::cout << "Simulator initialized by flipping site at: (" << init_site[0]
+            << ", " << init_site[1] << ")." << std::endl;
   return;
 };
 
@@ -61,8 +61,8 @@ double Simulator::get_energy_diff(int x, int y) {
  * Equation => M = (1/N) sum_(i=1)^(N) spin_(i)
  */
 void Simulator::find_magnitization() {
-  for (int x = 0; x < grid.size()[0]; ++x) {
-    for (int y = 0; y < grid.size()[1]; ++y) {
+  for (int x = 0; x < size[0]; ++x) {
+    for (int y = 0; y < size[1]; ++y) {
       int idx = grid.get_index(x, y);
       this->current_mag += grid.get_spin(idx);
     }
@@ -81,8 +81,8 @@ void Simulator::find_magnitization() {
  */
 void Simulator::find_total_energy() {
   this->current_energy = 0;
-  for (int x = 0; x < grid.size()[0]; ++x) {
-    for (int y = 0; y < grid.size()[1]; ++y) {
+  for (int x = 0; x < size[0]; ++x) {
+    for (int y = 0; y < size[1]; ++y) {
       int idx = grid.get_index(x, y);
 
       double interaction =
@@ -115,14 +115,14 @@ void Simulator::write_bin() {
                 sizeof(double));
   outFile.write(reinterpret_cast<const char *>(&this->current_mag),
                 sizeof(double));
-  //
-  //
-  // let Lattice grid;  spin_data = grid.get_pointer();
-  //                    data_size = grid.cols() * grid.rows() * sizeof(int8_t);
-  // outFile.write(reinterpret_cast<const char*>(spin_data), data_size);
-  spin_data = grid.get
 
-                  outFile.close();
+  auto *spin_data = grid.spin_pointer();
+  outFile.write(reinterpret_cast<const char *>(spin_data),
+                grid.total_sites() * sizeof(int8_t));
+
+  outFile.close();
+  std::cout << "Simulation results written to: " << &filename << "."
+            << std::endl;
 }
 
 /* Method: Simulator::try_flip(); (public)
@@ -162,8 +162,8 @@ void Simulator::try_flip() {
  */
 void Simulator::update_lattice() {
 #pragma omp parallel for collapse(2)
-  for (int x = 0; x < grid.size()[0]; ++x) {
-    for (int y = 0; y < grid.size()[1]; ++y) {
+  for (int x = 0; x < size[0]; ++x) {
+    for (int y = 0; y < size[1]; ++y) {
       double dE = get_energy_diff(x, y);
 
       if (dE <= 0 || dist(get_rng()) < std::exp(-dE / grid.get_temp())) {
@@ -171,8 +171,6 @@ void Simulator::update_lattice() {
       }
     }
   }
-};
-
-void Simulator::finalize() {
-
+  find_magnitization();
+  find_total_energy();
 };

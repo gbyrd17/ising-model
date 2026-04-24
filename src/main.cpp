@@ -1,7 +1,6 @@
 #include "../include/ising/lattice.hpp"
 #include "../include/ising/simulator.hpp"
 #include <nlohmann/json_fwd.hpp>
-#include <string>
 
 int main() {
   std::ifstream f("config.json");
@@ -16,5 +15,6 @@ int main() {
     sim.update_lattice();
   }
 
+  sim.write_bin();
   return 0;
 }

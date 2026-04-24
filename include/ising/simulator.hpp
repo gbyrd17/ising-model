@@ -2,9 +2,11 @@
 #include "./lattice.hpp"
 #include <omp.h>
 #include <random>
+#include <vector>
 
 class Simulator {
 private:
+  Lattice grid;
   std::uniform_real_distribution<double> dist{0.0, 1.0};
 
   /* Pointer: Simulator::&get_rng(); (private)
@@ -18,25 +20,22 @@ private:
     return engine;
   }
 
-  const std::vector<int> init_site;
-
   double get_energy_diff(int x, int y);
 
   void find_magnitization();
   void find_total_energy();
 
-  void write_bin();
-
-  Lattice grid;
   double current_energy;
   double current_mag;
 
 public:
   Simulator(Lattice lattice);
 
+  std::vector<int> size;
+  std::vector<int> init_site;
+
   void get_site();
   void try_flip();
   void update_lattice();
-  // TODO: IMPLEMENT finalize()
-  void finalize();
+  void write_bin();
 };
