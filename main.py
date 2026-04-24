@@ -1,5 +1,15 @@
+from sim_wrapper import grid_helper, scripts
+
+
 def main():
-    print("Hello from ising-model!")
+    grid_helper.generate_config(64, 64)
+
+    sim = scripts.Simulation(frames=500)
+
+    sim.run_sim()
+
+    if sim.get_data():
+        sim.animate()
 
 
 if __name__ == "__main__":

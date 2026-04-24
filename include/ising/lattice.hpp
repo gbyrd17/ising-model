@@ -1,11 +1,15 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <omp.h>
+#include <random>
 #include <vector>
 
 #include <fstream>
 #include <ios>
+#include <iostream>
 #include <nlohmann/json.hpp>
+#include <stdexcept>
 
 class Lattice {
 private:
@@ -56,6 +60,22 @@ private:
               expected_size * sizeof(double));
   }
 
+  void populate_lattice() {
+#pragma omp parallel
+    {
+      std::uniform_int_distribution<int> spin_dist(0, 1);
+
+      thread_local std::mt19937 gen(std::random_device{}() +
+                                    omp_get_thread_num());
+
+#pragma omp for
+      for (int i = 0; i < static_cast<int>(N); ++i) {
+        int8_t val = spin_dist(gen) ? 1 : -1;
+        spins[i] = val;
+      }
+    }
+  }
+
 public:
   /* Constructor: Lattice::Lattice(const nlohmann::json &j); (public)
    * Returns: (void); reads json file j and attempts to pull number of rows,
@@ -75,11 +95,23 @@ public:
    *  if having issues, always make sure to generate config and binaries
    *  from "$[PROJECT ROOT]/scripts/grid_helper.py"
    */
-  Lattice(const nlohmann::json &j) {
+  Lattice(const nlohmann::json &j, bool random_initial = true) {
+    if (!j.contains("rows") || !j.contains("cols") || !j.contains("T")) {
+      throw std::runtime_error("json config missing required keys (one or more "
+                               "of: 'rows', 'cols', 'T'.)");
+    }
     rows = j["rows"];
     cols = j["cols"];
     temp = j["T"];
     N = static_cast<size_t>(rows * cols);
+
+    spins.resize(N);
+    if (random_initial) {
+      populate_lattice();
+    } else {
+      throw std::runtime_error("!!Error!! bool 'random_initial' returned "
+                               "FALSE: Logic not implemented yet.\n");
+    }
 
     load_binary_map(j["field_map"], field, N);
     load_binary_map(j["h_coupling_map"], x_coupling, N);
@@ -94,7 +126,7 @@ public:
   inline size_t get_index(int x, int y) const {
     auto wrapX = [this](int val) { return (val % rows + rows) % rows; };
     auto wrapY = [this](int val) { return (val % cols + cols) % cols; };
-    return wrapX(x) + y * wrapY(y);
+    return wrapX(x) * cols + wrapY(y);
   };
 
   /* Accessor: Lattice::get_spin(size_t idx); (public)
@@ -115,23 +147,28 @@ public:
   /* Accessor: Lattice.size(); (public)
    * Returns: (std::vector<int>); returns vector holding {rows, cols}.
    */
-  std::vector<int> size() const { return {rows, cols}; }
+  std::vector<int> get_size() { return {rows, cols}; };
 
   /* Accessor: Lattice.total_sites(); (public)
    * Returns: (int); returns number of sites (rows * cols).
    */
-  int total_sites() const { return N; }
+  int total_sites() const { return N; };
 
   /* Accessor: Lattice.get_temp(); (public)
    * Returns: (double); returns the user configured temperature of system.
    */
-  double get_temp() const { return temp; }
+  double get_temp() const { return temp; };
 
   /* Accessor: Lattice.get_ext_H(); (public)
    * Returns: (double); returns user configured external
    *    magnetic field of system.
    */
-  double get_ext_H() const { return ext_H; }
+  double get_ext_H() const { return ext_H; };
+
+  /* Accessor: Lattice.spin_pointer(); (public)
+   * Returns: (std::vector<int8_t>*); returns pointer to spin state array.
+   */
+  std::vector<int8_t> *spin_pointer() { return &spins; };
 
   /* Variable: Lattice.field (public)
    * std::vector<double> field; flattened array of internal magnetic

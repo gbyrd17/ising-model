@@ -1,6 +1,7 @@
 #include "../include/ising/simulator.hpp"
 #include "../include/ising/lattice.hpp"
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <omp.h>
@@ -13,17 +14,18 @@
  *    a site at random to use in try_flip initialization method
  *
  */
-Simulator::Simulator(Lattice lattice) : grid(lattice) {
+Simulator::Simulator(Lattice lattice) : grid(std::move(lattice)) {
+  size = this->grid.get_size();
 
-  const std::vector<int> size = grid.size();
-  std::uniform_int_distribution<int> x_dist{0, size[0]};
-  std::uniform_int_distribution<int> y_dist{0, size[1]};
+  std::uniform_int_distribution<int> x_dist{0, size[0] - 1};
+  std::uniform_int_distribution<int> y_dist{0, size[1] - 1};
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  const std::vector<int> init_site = {x_dist(gen), y_dist(gen)};
-  std::cout << "Initialized by flipping site at: (" << init_site[0] << ", "
-            << init_site[1] << ")." << std::endl;
+  site = {x_dist(gen), y_dist(gen)};
+  std::cout << "Simulator initialized by flipping site at: (" << site[0] << ", "
+            << site[1] << ")." << std::endl;
+  first_pass = true;
   return;
 };
 
@@ -61,8 +63,9 @@ double Simulator::get_energy_diff(int x, int y) {
  * Equation => M = (1/N) sum_(i=1)^(N) spin_(i)
  */
 void Simulator::find_magnitization() {
-  for (int x = 0; x < grid.size()[0]; ++x) {
-    for (int y = 0; y < grid.size()[1]; ++y) {
+  this->current_mag = 0;
+  for (int x = 0; x < size[0]; ++x) {
+    for (int y = 0; y < size[1]; ++y) {
       int idx = grid.get_index(x, y);
       this->current_mag += grid.get_spin(idx);
     }
@@ -81,8 +84,8 @@ void Simulator::find_magnitization() {
  */
 void Simulator::find_total_energy() {
   this->current_energy = 0;
-  for (int x = 0; x < grid.size()[0]; ++x) {
-    for (int y = 0; y < grid.size()[1]; ++y) {
+  for (int x = 0; x < size[0]; ++x) {
+    for (int y = 0; y < size[1]; ++y) {
       int idx = grid.get_index(x, y);
 
       double interaction =
@@ -97,32 +100,7 @@ void Simulator::find_total_energy() {
   return;
 }
 
-/* Method: Simulator::write_bin(); (private)
- * Returns: (void); Records current total energy, magnitization,
- *    and spin configuration to a .bin file.  File readable by
- *    python frontend.  Used by python frontend to generate
- *    visualization and output for user.
- */
-void Simulator::write_bin() {
-  const std::string &filename = "output.bin";
-  std::ofstream outFile(filename, std::ios::binary | std::ios::app);
-
-  if (!outFile.is_open()) {
-    throw std::runtime_error("Failed to open/initialize output file");
-  }
-
-  outFile.write(reinterpret_cast<const char *>(&this->current_energy),
-                sizeof(double));
-  outFile.write(reinterpret_cast<const char *>(&this->current_mag),
-                sizeof(double));
-  //
-  //
-  // let Lattice grid;  spin_data = grid.get_pointer();
-  //                    data_size = grid.cols() * grid.rows() * sizeof(int8_t);
-  // outFile.write(reinterpret_cast<const char*>(spin_data), data_size);
-
-  outFile.close();
-}
+void Simulator::update_site() { site = {x_dist(gen), y_dist(gen)}; };
 
 /* Method: Simulator::try_flip(); (public)
  * Returns: (void); Uses pre-initialized starting site (see constructor) as
@@ -139,9 +117,9 @@ void Simulator::write_bin() {
  *    according to Boltzmann distribution.
  */
 void Simulator::try_flip() {
-  int idx = grid.get_index(init_site[0], init_site[1]);
+  int idx = grid.get_index(site[0], site[1]);
 
-  double dE = get_energy_diff(init_site[0], init_site[1]);
+  double dE = get_energy_diff(site[0], site[1]);
   if (dE <= 0) {
     grid.flip_spin(idx);
   } else {
@@ -150,28 +128,48 @@ void Simulator::try_flip() {
       grid.flip_spin(idx);
     }
   }
+  find_magnitization();
+  find_total_energy();
 };
 
-/* Method: Simulator::update_lattice(); (public)
- * Returns: (void);  Propagates Metropolis-Hastings algorithm across whole grid.
- *    Used to update grid after a change has been made; a site was flipped,
- * temperature modified, or coupling modified.
- *
- *    Updates (Lattice) grid by flipping sites according to Metropolis-Hastings.
+/* Method: Simulator::write_bin(); (private)
+ * Returns: (void); Records current total energy, magnitization,
+ *    and spin configuration to a .bin file.  File readable by
+ *    python frontend.  Used by python frontend to generate
+ *    visualization and output for user.
  */
-void Simulator::update_lattice() {
-#pragma omp parallel for collapse(2)
-  for (int x = 0; x < grid.size()[0]; ++x) {
-    for (int y = 0; y < grid.size()[1]; ++y) {
-      double dE = get_energy_diff(x, y);
-
-      if (dE <= 0 || dist(get_rng()) < std::exp(-dE / grid.get_temp())) {
-        grid.flip_spin(grid.get_index(x, y));
-      }
+void Simulator::write_bin() {
+  namespace fs = std::filesystem;
+  try {
+    if (fs::create_directories("./output")) {
+      std::cout << "Output directory not found, creating...";
     }
+    const std::string &filename = "./output/sim_output.bin";
+    std::ofstream outFile;
+    if (first_pass) {
+      outFile.open(filename, std::ios::binary | std::ios::out);
+      first_pass = false;
+    } else {
+      outFile.open(filename, std::ios::binary | std::ios::app);
+    }
+
+    if (!outFile.is_open()) {
+      throw std::runtime_error("Failed to open/initialize output file");
+    } else {
+      outFile.write(reinterpret_cast<const char *>(&this->current_energy),
+                    sizeof(double));
+      outFile.write(reinterpret_cast<const char *>(&this->current_mag),
+                    sizeof(double));
+
+      outFile.write(reinterpret_cast<const char *>(this->size.data()),
+                    2 * sizeof(int));
+
+      int8_t *spin_data = grid.spin_pointer()->data();
+      outFile.write(reinterpret_cast<const char *>(spin_data),
+                    grid.total_sites());
+      outFile.close();
+    }
+  } catch (const fs::filesystem_error &e) {
+    std::cerr << "!!Error!! " << e.what() << '\n';
   }
-};
-
-void Simulator::finalize() {
-
 };

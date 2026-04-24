@@ -2,10 +2,18 @@
 #include "./lattice.hpp"
 #include <omp.h>
 #include <random>
+#include <vector>
 
 class Simulator {
 private:
+  Lattice grid;
   std::uniform_real_distribution<double> dist{0.0, 1.0};
+
+  std::uniform_int_distribution<int> x_dist;
+  std::uniform_int_distribution<int> y_dist;
+
+  std::random_device rd;
+  std::mt19937 gen{rd()};
 
   /* Pointer: Simulator::&get_rng(); (private)
    * Returns: (std::mt19937); Allows for cpu multithreading in probability
@@ -18,25 +26,23 @@ private:
     return engine;
   }
 
-  const std::vector<int> init_site;
-
   double get_energy_diff(int x, int y);
 
   void find_magnitization();
   void find_total_energy();
 
-  void write_bin();
-
-  Lattice grid;
   double current_energy;
   double current_mag;
+
+  bool first_pass;
 
 public:
   Simulator(Lattice lattice);
 
-  void get_site();
+  std::vector<int> size;
+  std::vector<int> site;
+
   void try_flip();
-  void update_lattice();
-  // TODO: IMPLEMENT finalize()
-  void finalize();
+  void update_site();
+  void write_bin();
 };
